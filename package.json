@@ -1,13 +1,19 @@
 {
   "name": "nonotify",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "nnt CLI for Telegram notifications",
   "type": "module",
   "bin": {
-    "nnt": "dist/cli.js"
+    "nnt": "./dist/cli.js"
   },
   "scripts": {
+    "prettier:check": "npx prettier --check .",
+    "prettier:fix": "npx prettier --write .",
+    "check": "npm run prettier:check",
+    "fix": "npm run prettier:fix",
+    "test": "npm run check",
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js"
   },

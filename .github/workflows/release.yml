@@ -86,9 +86,9 @@ jobs:
         if: steps.guard.outputs.should_release == 'true'
         run: npm ci
 
-      # - name: Run tests
-      #   if: steps.guard.outputs.should_release == 'true'
-      #   run: npm test
+      - name: Run tests
+        if: steps.guard.outputs.should_release == 'true'
+        run: npm test
 
       - name: Create git tag
         if: steps.guard.outputs.should_release == 'true'
