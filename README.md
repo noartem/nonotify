@@ -7,12 +7,10 @@ Use it to send yourself a message when tasks are done, including from coding age
 ## Install
 
 ```bash
-npm install
-npm run build
-npm link
+npm install -g nonotify
 ```
 
-After linking, `nnt` is available globally.
+After install, `nnt` is available globally.
 
 ## Config location
 
