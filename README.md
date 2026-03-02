@@ -116,3 +116,41 @@ nnt send "some message for user" --profile=important-profile
 ```bash
 nnt "Task finished: migrations applied and tests passed"
 ```
+
+## Node.js API
+
+`Notifier` loads config using `EnvConfigLoader` by default.
+
+```ts
+import { Notifier } from "nonotify";
+
+const notifier = new Notifier();
+
+await notifier.send({
+  message: "Build finished successfully",
+});
+```
+
+Also you can pass profile data directly.
+
+```ts
+import { Notifier } from "nonotify";
+
+const notifier = new Notifier({
+  defaultProfile: "dev",
+  profiles: [
+    {
+      name: "dev",
+      botToken: process.env.TELEGRAM_BOT_TOKEN!,
+      chatId: process.env.TELEGRAM_CHAT_ID!,
+    },
+  ],
+});
+
+await notifier.send({
+  profile: "dev",
+  message: "Task completed",
+});
+
+console.log(notifier.profiles);
+```

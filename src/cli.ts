@@ -14,6 +14,7 @@ import {
   sendTelegramMessage,
   waitForChatId,
 } from "./telegram.js";
+import { Notifier } from "./notifier.js";
 
 const profileCli = Cli.create("profile", {
   description: "Manage notification profiles",
@@ -442,32 +443,12 @@ const cli = Cli.create("nnt", {
       profile: "p",
     },
     async run(c) {
-      const config = await loadConfig();
-      const profileName = c.options.profile ?? config.defaultProfile;
+      const notifier = new Notifier();
 
-      if (!profileName) {
-        throw new Error(
-          "No default profile found. Run `nnt profile add` first.",
-        );
-      }
-
-      const profile = config.profiles[profileName];
-
-      if (!profile) {
-        throw new Error(`Profile "${profileName}" not found.`);
-      }
-
-      await sendTelegramMessage(
-        profile.botToken,
-        profile.chatId,
-        c.args.message,
-      );
-
-      return {
-        sent: true,
-        profile: profileName,
-        provider: profile.type,
-      };
+      return notifier.send({
+        message: c.args.message,
+        profile: c.options.profile,
+      });
     },
   })
   .command(profileCli);

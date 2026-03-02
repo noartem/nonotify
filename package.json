@@ -1,8 +1,17 @@
 {
   "name": "nonotify",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "nnt CLI for Telegram notifications",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "nnt": "./dist/cli.js"
   },
