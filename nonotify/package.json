@@ -18,11 +18,12 @@
   "scripts": {
     "prettier:check": "npx prettier --check \"src/**/*.ts\"",
     "prettier:fix": "npx prettier --write \"src/**/*.ts\"",
+    "copy:readme": "node ./scripts/copy-readme.mjs",
     "check": "npm run prettier:check",
     "fix": "npm run prettier:fix",
     "test": "npm run check",
     "build": "tsc -p tsconfig.json",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run copy:readme && npm run build",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js"
   },
