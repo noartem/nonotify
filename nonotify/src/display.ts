@@ -25,7 +25,7 @@ export function printProfilesTable(rows: ProfileRow[]): void {
 
 export function printKeyValueTable(
   title: string,
-  rows: Array<{ key: string; value: string }>,
+  rows: Array<{ key: string; value: string }>
 ): void {
   process.stdout.write(`${title}\n`);
 

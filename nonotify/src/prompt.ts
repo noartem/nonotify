@@ -6,7 +6,7 @@ export async function askRequired(question: string): Promise<string> {
 
 export async function askRequiredWithInitial(
   question: string,
-  initialValue?: string,
+  initialValue?: string
 ): Promise<string> {
   const message = normalizeQuestion(question);
 
@@ -32,7 +32,7 @@ export async function askRequiredWithInitial(
 
 export async function askConfirm(
   question: string,
-  initialValue = false,
+  initialValue = false
 ): Promise<boolean> {
   const value = await confirm({
     message: normalizeQuestion(question),
@@ -56,7 +56,7 @@ type SelectOption = {
 
 export async function askSelect(
   question: string,
-  options: SelectOption[],
+  options: SelectOption[]
 ): Promise<string> {
   const value = await select<string>({
     message: normalizeQuestion(question),

@@ -1,16 +1,18 @@
-name: Release & Publish
+name: Release
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,92 +24,24 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org/
-
-      - name: Decide whether to release
-        id: guard
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          VERSION="$(node -p "require('./package.json').version")"
-          NAME="$(node -p "require('./package.json').name")"
-
-          git fetch --tags --force
-
-          # Latest tag (empty if no tags yet)
-          LATEST_TAG="$(git tag --sort=-v:refname | head -n 1 || true)"
-
-          # Does tag for this version already exist?
-          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
-            TAG_EXISTS="true"
-          else
-            TAG_EXISTS="false"
-          fi
-
-          # Is that version already on npm?
-          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
-            NPM_EXISTS="true"
-          else
-            NPM_EXISTS="false"
-          fi
-
-          # Decide
-          SHOULD_RELEASE="true"
-          REASON="ok"
-
-          if [[ "$TAG_EXISTS" == "true" ]]; then
-            SHOULD_RELEASE="false"
-            REASON="git tag already exists"
-          elif [[ -n "$LATEST_TAG" && "$VERSION" == "$LATEST_TAG" ]]; then
-            SHOULD_RELEASE="false"
-            REASON="package.json version equals latest tag"
-          elif [[ "$NPM_EXISTS" == "true" ]]; then
-            SHOULD_RELEASE="false"
-            REASON="version already published on npm"
-          fi
-
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
-          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
-          echo "npm_exists=$NPM_EXISTS" >> "$GITHUB_OUTPUT"
-          echo "should_release=$SHOULD_RELEASE" >> "$GITHUB_OUTPUT"
-          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
-
-          echo "Decision: should_release=$SHOULD_RELEASE ($REASON)"
-
-      - name: Stop summary
-        if: steps.guard.outputs.should_release != 'true'
-        run: |
-          echo "Skipping release: ${{ steps.guard.outputs.reason }}"
-          echo "Version: ${{ steps.guard.outputs.version }}"
-          echo "Latest tag: ${{ steps.guard.outputs.latest_tag }}"
+          cache: npm
 
       - name: Install dependencies
-        if: steps.guard.outputs.should_release == 'true'
         run: npm ci
 
-      - name: Run tests
-        if: steps.guard.outputs.should_release == 'true'
-        run: npm test
-
-      - name: Create git tag
-        if: steps.guard.outputs.should_release == 'true'
+      - name: Validate packages
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag "${{ steps.guard.outputs.version }}"
-          git push origin "${{ steps.guard.outputs.version }}"
+          npm run check
+          npm run test
+          npm run build
 
-      - name: Create GitHub Release
-        if: steps.guard.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v2
+      - name: Create release PR or publish
+        id: changesets
+        uses: changesets/action@v1
         with:
-          tag_name: ${{ steps.guard.outputs.version }}
-          name: Release ${{ steps.guard.outputs.version }}
-          generate_release_notes: true
-
-      - name: Publish to npm
-        if: steps.guard.outputs.should_release == 'true'
-        run: npm publish
+          version: npm run version-packages
+          publish: npm run release
+          createGithubReleases: true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.npm_token }}

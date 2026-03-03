@@ -31,7 +31,7 @@ export type TelegramConnection = {
 async function telegramRequest<T>(
   botToken: string,
   method: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown>
 ): Promise<T> {
   const response = await fetch(
     `https://api.telegram.org/bot${botToken}/${method}`,
@@ -41,7 +41,7 @@ async function telegramRequest<T>(
         "content-type": "application/json",
       },
       body: JSON.stringify(payload),
-    },
+    }
   );
 
   if (!response.ok) {
@@ -64,7 +64,7 @@ export async function getLatestUpdateOffset(botToken: string): Promise<number> {
     {
       timeout: 0,
       allowed_updates: ["message"],
-    },
+    }
   );
 
   if (updates.length === 0) {
@@ -73,7 +73,7 @@ export async function getLatestUpdateOffset(botToken: string): Promise<number> {
 
   const maxUpdateId = updates.reduce(
     (acc, item) => Math.max(acc, item.update_id),
-    0,
+    0
   );
   return maxUpdateId + 1;
 }
@@ -81,7 +81,7 @@ export async function getLatestUpdateOffset(botToken: string): Promise<number> {
 export async function waitForChatId(
   botToken: string,
   offset: number,
-  timeoutSeconds = 120,
+  timeoutSeconds = 120
 ): Promise<TelegramConnection> {
   const startedAt = Date.now();
   let currentOffset = offset;
@@ -98,7 +98,7 @@ export async function waitForChatId(
         offset: currentOffset,
         timeout: pollTimeout,
         allowed_updates: ["message"],
-      },
+      }
     );
 
     for (const update of updates) {
@@ -117,14 +117,14 @@ export async function waitForChatId(
   }
 
   throw new Error(
-    "Timed out waiting for Telegram message. Send a message to your bot and try again.",
+    "Timed out waiting for Telegram message. Send a message to your bot and try again."
   );
 }
 
 export async function sendTelegramMessage(
   botToken: string,
   chatId: string,
-  text: string,
+  text: string
 ): Promise<void> {
   await telegramRequest(botToken, "sendMessage", {
     chat_id: chatId,

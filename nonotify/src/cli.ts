@@ -46,7 +46,7 @@ profileCli.command("add", {
     if (shouldRenderPretty(c.agent)) {
       process.stdout.write("\nSend any message to your bot in Telegram.\n");
       process.stdout.write(
-        "Waiting for message to detect chat_id (up to 120s)...\n",
+        "Waiting for message to detect chat_id (up to 120s)...\n"
       );
     }
 
@@ -57,7 +57,7 @@ profileCli.command("add", {
     if (shouldRenderPretty(c.agent)) {
       if (connection.username) {
         process.stdout.write(
-          `Connected Telegram username: @${connection.username}\n`,
+          `Connected Telegram username: @${connection.username}\n`
         );
       } else {
         process.stdout.write("Connected Telegram user has no username set.\n");
@@ -85,7 +85,7 @@ profileCli.command("add", {
       await sendTelegramMessage(
         botToken,
         chatId,
-        `nnt: profile "${profileName}" connected successfully. You can now send notifications from CLI.`,
+        `nnt: profile "${profileName}" connected successfully. You can now send notifications from CLI.`
       );
       confirmationSent = true;
     } catch (error) {
@@ -128,7 +128,7 @@ profileCli.command("list", {
   async run(c) {
     const config = await loadConfig();
     const names = Object.keys(config.profiles).sort((a, b) =>
-      a.localeCompare(b),
+      a.localeCompare(b)
     );
     const profiles = names.map((name) => ({
       name,
@@ -208,7 +208,7 @@ profileCli.command("delete", {
 
     if (config.defaultProfile === targetName) {
       const remaining = Object.keys(config.profiles).sort((a, b) =>
-        a.localeCompare(b),
+        a.localeCompare(b)
       );
       config.defaultProfile = remaining[0] ?? null;
     }
@@ -256,7 +256,7 @@ profileCli.command("edit", {
   async run(c) {
     const config = await loadConfig();
     const profileNames = Object.keys(config.profiles).sort((a, b) =>
-      a.localeCompare(b),
+      a.localeCompare(b)
     );
 
     if (profileNames.length === 0) {
@@ -265,15 +265,15 @@ profileCli.command("edit", {
 
     const hasDirectEditOptions = Boolean(
       c.options.newName ||
-      c.options.botToken ||
-      c.options.chatId ||
-      c.options.reconnect,
+        c.options.botToken ||
+        c.options.chatId ||
+        c.options.reconnect
     );
 
     const sourceName = await resolveProfileForEdit(
       c.args.profile,
       profileNames,
-      hasDirectEditOptions,
+      hasDirectEditOptions
     );
     const sourceProfile = config.profiles[sourceName];
 
@@ -302,19 +302,19 @@ profileCli.command("edit", {
 
       nextBotToken = await askRequiredWithInitial(
         "Telegram bot token",
-        sourceProfile.botToken,
+        sourceProfile.botToken
       );
 
       const shouldReconnect = await askConfirm(
         "Reconnect and detect chat_id from a new message?",
-        false,
+        false
       );
 
       if (shouldReconnect) {
         if (shouldRenderPretty(c.agent)) {
           process.stdout.write("\nSend any message to your bot in Telegram.\n");
           process.stdout.write(
-            "Waiting for message to detect chat_id (up to 120s)...\n",
+            "Waiting for message to detect chat_id (up to 120s)...\n"
           );
         }
 
@@ -326,18 +326,18 @@ profileCli.command("edit", {
         if (shouldRenderPretty(c.agent)) {
           if (connection.username) {
             process.stdout.write(
-              `Connected Telegram username: @${connection.username}\n`,
+              `Connected Telegram username: @${connection.username}\n`
             );
           } else {
             process.stdout.write(
-              "Connected Telegram user has no username set.\n",
+              "Connected Telegram user has no username set.\n"
             );
           }
         }
       } else {
         chatId = await askRequiredWithInitial(
           "Telegram chat_id",
-          sourceProfile.chatId,
+          sourceProfile.chatId
         );
       }
     }
@@ -346,7 +346,7 @@ profileCli.command("edit", {
       if (shouldRenderPretty(c.agent)) {
         process.stdout.write("\nSend any message to your bot in Telegram.\n");
         process.stdout.write(
-          "Waiting for message to detect chat_id (up to 120s)...\n",
+          "Waiting for message to detect chat_id (up to 120s)...\n"
         );
       }
 
@@ -358,11 +358,11 @@ profileCli.command("edit", {
       if (shouldRenderPretty(c.agent)) {
         if (connection.username) {
           process.stdout.write(
-            `Connected Telegram username: @${connection.username}\n`,
+            `Connected Telegram username: @${connection.username}\n`
           );
         } else {
           process.stdout.write(
-            "Connected Telegram user has no username set.\n",
+            "Connected Telegram user has no username set.\n"
           );
         }
       }
@@ -534,7 +534,7 @@ function isAgentEnvironment(): boolean {
 
 function withAgentDefaultFormat(
   argv: string[],
-  strictOutputRequested: boolean,
+  strictOutputRequested: boolean
 ): string[] {
   if (strictOutputRequested || !isAgentEnvironment()) {
     return argv;
@@ -550,7 +550,7 @@ function canPromptInteractively(): boolean {
 async function resolveProfileForEdit(
   profileFromArgs: string | undefined,
   profileNames: string[],
-  hasDirectEditOptions: boolean,
+  hasDirectEditOptions: boolean
 ): Promise<string> {
   if (profileFromArgs) {
     return profileFromArgs;
@@ -565,7 +565,7 @@ async function resolveProfileForEdit(
     profileNames.map((name) => ({
       value: name,
       label: name,
-    })),
+    }))
   );
 }
 
@@ -573,7 +573,7 @@ const normalizedArgv = normalizeFormatFlag(process.argv.slice(2));
 const strictOutputRequested = isStrictOutputRequested(normalizedArgv);
 const argvWithAgentDefaults = withAgentDefaultFormat(
   normalizedArgv,
-  strictOutputRequested,
+  strictOutputRequested
 );
 
 function shouldRenderPretty(agent: boolean): boolean {

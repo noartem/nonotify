@@ -75,7 +75,7 @@ type RawRecordProfile = {
 export class EnvConfigLoader implements NotifierConfigLoader {
   load(): NotifierConfig {
     const configPaths = Array.from(
-      new Set([getConfigPath(), getLegacyConfigPath()]),
+      new Set([getConfigPath(), getLegacyConfigPath()])
     );
 
     for (const configPath of configPaths) {
@@ -90,7 +90,7 @@ export class EnvConfigLoader implements NotifierConfigLoader {
 
         if (error instanceof SyntaxError) {
           throw new NotifierError(
-            `Invalid JSON in config file at ${configPath}: ${error.message}`,
+            `Invalid JSON in config file at ${configPath}: ${error.message}`
           );
         }
 
@@ -114,18 +114,18 @@ export class Notifier {
   >;
 
   constructor(
-    source: NotifierConfig | NotifierConfigLoader = new EnvConfigLoader(),
+    source: NotifierConfig | NotifierConfigLoader = new EnvConfigLoader()
   ) {
     const config = isConfigLoader(source) ? source.load() : source;
     const normalized = normalizeNotifierConfig(config);
     const frozenProfiles = normalized.profiles.map((profile) =>
-      Object.freeze({ ...profile }),
+      Object.freeze({ ...profile })
     );
 
     this.profiles = Object.freeze(frozenProfiles);
     this.defaultProfile = normalized.defaultProfile;
     this.profilesByName = new Map(
-      frozenProfiles.map((profile) => [profile.name, profile]),
+      frozenProfiles.map((profile) => [profile.name, profile])
     );
   }
 
@@ -141,7 +141,7 @@ export class Notifier {
     await sendTelegramMessage(
       selectedProfile.botToken,
       selectedProfile.chatId,
-      message,
+      message
     );
 
     return {
@@ -194,22 +194,22 @@ function normalizeProfilesFromUnknown(rawProfiles: unknown): NotifierProfile[] {
 
   if (Array.isArray(rawProfiles)) {
     return rawProfiles.map((profile, index) =>
-      normalizeSingleProfile(profile, `profiles[${index}]`),
+      normalizeSingleProfile(profile, `profiles[${index}]`)
     );
   }
 
   if (typeof rawProfiles === "object") {
     const entries = Object.entries(
-      rawProfiles as Record<string, RawRecordProfile>,
+      rawProfiles as Record<string, RawRecordProfile>
     );
 
     return entries.map(([name, profile]) =>
-      normalizeRecordProfile(name, profile, `profiles.${name}`),
+      normalizeRecordProfile(name, profile, `profiles.${name}`)
     );
   }
 
   throw new NotifierError(
-    "Invalid config format: `profiles` must be an array or object.",
+    "Invalid config format: `profiles` must be an array or object."
   );
 }
 
@@ -219,12 +219,12 @@ function normalizeNotifierConfig(input: NotifierConfig): {
 } {
   if (!Array.isArray(input.profiles)) {
     throw new NotifierError(
-      "Invalid Notifier config: `profiles` must be an array.",
+      "Invalid Notifier config: `profiles` must be an array."
     );
   }
 
   const profiles = input.profiles.map((profile, index) =>
-    normalizeSingleProfile(profile, `profiles[${index}]`),
+    normalizeSingleProfile(profile, `profiles[${index}]`)
   );
 
   const names = new Set<string>();
@@ -232,7 +232,7 @@ function normalizeNotifierConfig(input: NotifierConfig): {
   for (const profile of profiles) {
     if (names.has(profile.name)) {
       throw new NotifierError(
-        `Invalid Notifier config: duplicate profile name "${profile.name}".`,
+        `Invalid Notifier config: duplicate profile name "${profile.name}".`
       );
     }
 
@@ -249,11 +249,11 @@ function normalizeNotifierConfig(input: NotifierConfig): {
 function normalizeRecordProfile(
   profileName: string,
   rawProfile: RawRecordProfile,
-  sourceLabel: string,
+  sourceLabel: string
 ): NotifierProfile {
   if (!rawProfile || typeof rawProfile !== "object") {
     throw new NotifierError(
-      `Invalid profile at ${sourceLabel}: expected an object.`,
+      `Invalid profile at ${sourceLabel}: expected an object.`
     );
   }
 
@@ -262,7 +262,7 @@ function normalizeRecordProfile(
     name: profileName,
     botToken: requireNonEmptyString(
       rawProfile.botToken,
-      `${sourceLabel}.botToken`,
+      `${sourceLabel}.botToken`
     ),
     chatId: requireNonEmptyString(rawProfile.chatId, `${sourceLabel}.chatId`),
   };
@@ -270,11 +270,11 @@ function normalizeRecordProfile(
 
 function normalizeSingleProfile(
   rawProfile: unknown,
-  sourceLabel: string,
+  sourceLabel: string
 ): NotifierProfile {
   if (!rawProfile || typeof rawProfile !== "object") {
     throw new NotifierError(
-      `Invalid profile at ${sourceLabel}: expected an object.`,
+      `Invalid profile at ${sourceLabel}: expected an object.`
     );
   }
 
@@ -287,7 +287,7 @@ function normalizeSingleProfile(
 
   if (profile.type !== undefined && profile.type !== "telegram") {
     throw new NotifierError(
-      `Invalid profile at ${sourceLabel}.type: only "telegram" is supported.`,
+      `Invalid profile at ${sourceLabel}.type: only "telegram" is supported.`
     );
   }
 
@@ -296,7 +296,7 @@ function normalizeSingleProfile(
     name: requireNonEmptyString(profile.name, `${sourceLabel}.name`),
     botToken: requireNonEmptyString(
       profile.botToken,
-      `${sourceLabel}.botToken`,
+      `${sourceLabel}.botToken`
     ),
     chatId: requireNonEmptyString(profile.chatId, `${sourceLabel}.chatId`),
   };
@@ -305,7 +305,7 @@ function normalizeSingleProfile(
 function requireNonEmptyString(value: unknown, label: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     throw new NotifierError(
-      `Invalid value for ${label}: expected non-empty string.`,
+      `Invalid value for ${label}: expected non-empty string.`
     );
   }
 

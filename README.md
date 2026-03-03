@@ -168,3 +168,18 @@ await notifier.send({
 
 console.log(notifier.profiles);
 ```
+
+## Monorepo release flow
+
+This repository is an npm workspaces monorepo with automated releases via Changesets.
+
+- Every user-facing package change should include a changeset:
+
+```bash
+npx changeset
+```
+
+- Release automation behavior:
+  - on `main`, GitHub Actions creates/updates a release PR with version bumps and changelogs;
+  - after merging that PR, Actions publishes changed packages to npm;
+  - Git tags and GitHub Releases are created automatically.

@@ -1,0 +1,18 @@
+{
+  "name": "nonotify-monorepo",
+  "private": true,
+  "workspaces": [
+    "nonotify",
+    "nonotify-opencode"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.7"
+  }
+}
