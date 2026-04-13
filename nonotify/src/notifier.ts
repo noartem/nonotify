@@ -1,6 +1,15 @@
 import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { getConfigPath, getLegacyConfigPath } from "./config.js";
-import { sendTelegramMessage } from "./telegram.js";
+import {
+  answerTelegramCallbackQuery,
+  clearTelegramInlineKeyboard,
+  getLatestUpdateOffset,
+  markTelegramSelectedOption,
+  sendTelegramChoiceMessage,
+  sendTelegramMessage,
+  waitForTelegramCallback,
+} from "./telegram.js";
 
 export type NotifierProfile = {
   type: "telegram";
@@ -36,6 +45,20 @@ export type SendResult = {
   provider: "telegram";
 };
 
+export type AskInput = {
+  message: string;
+  options: readonly string[];
+  profile?: string;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+};
+
+export type AskResult = {
+  selected: string;
+  profile: string;
+  provider: "telegram";
+};
+
 export class NotifierError extends Error {
   constructor(message: string) {
     super(message);
@@ -57,6 +80,20 @@ export class NoProfilesConfiguredError extends NotifierError {
   constructor() {
     super("No profiles configured. Run `nnt profile add` first.");
     this.name = "NoProfilesConfiguredError";
+  }
+}
+
+export class AskTimeoutError extends NotifierError {
+  constructor() {
+    super("Timed out waiting for Telegram answer.");
+    this.name = "AskTimeoutError";
+  }
+}
+
+export class AskAbortedError extends NotifierError {
+  constructor() {
+    super("Telegram answer wait was aborted.");
+    this.name = "AskAbortedError";
   }
 }
 
@@ -149,6 +186,117 @@ export class Notifier {
       profile: selectedProfile.name,
       provider: selectedProfile.type,
     };
+  }
+
+  async ask(input: AskInput): Promise<AskResult> {
+    const message = input.message.trim();
+
+    if (message === "") {
+      throw new NotifierError("Message cannot be empty.");
+    }
+
+    if (!Array.isArray(input.options)) {
+      throw new NotifierError("Options must be an array.");
+    }
+
+    if (input.options.length < 1 || input.options.length > 10) {
+      throw new NotifierError("Options must contain between 1 and 10 items.");
+    }
+
+    const options = input.options.map((option, index) => {
+      if (typeof option !== "string" || option.trim() === "") {
+        throw new NotifierError(
+          `Invalid option at index ${index}: expected non-empty string.`
+        );
+      }
+
+      return option.trim();
+    });
+
+    if (
+      input.timeoutMs !== undefined &&
+      (!Number.isFinite(input.timeoutMs) || input.timeoutMs < 0)
+    ) {
+      throw new NotifierError("timeoutMs must be a non-negative number.");
+    }
+
+    const selectedProfile = this.resolveProfile(input.profile);
+    const offset = await getLatestUpdateOffset(selectedProfile.botToken);
+    const requestId = randomUUID().replaceAll("-", "");
+    const callbackOptions = options.map((option, index) => ({
+      label: option,
+      callbackData: `nnt:${requestId}:${index}`,
+    }));
+    const sentMessage = await sendTelegramChoiceMessage(
+      selectedProfile.botToken,
+      selectedProfile.chatId,
+      message,
+      callbackOptions
+    );
+
+    try {
+      const callback = await waitForTelegramCallback(selectedProfile.botToken, {
+        chatId: selectedProfile.chatId,
+        messageId: sentMessage.messageId,
+        callbackData: callbackOptions.map((option) => option.callbackData),
+        offset,
+        timeoutMs: input.timeoutMs,
+        signal: input.signal,
+      });
+
+      const selectedIndex = callbackOptions.findIndex(
+        (option) => option.callbackData === callback.data
+      );
+
+      if (selectedIndex === -1) {
+        throw new NotifierError("Received an unknown Telegram answer.");
+      }
+
+      await answerTelegramCallbackQuery(
+        selectedProfile.botToken,
+        callback.callbackQueryId
+      );
+
+      try {
+        await markTelegramSelectedOption(
+          selectedProfile.botToken,
+          selectedProfile.chatId,
+          sentMessage.messageId,
+          callbackOptions,
+          callback.data
+        );
+      } catch {
+        // Keep the selected answer even if the visual update fails.
+      }
+
+      return {
+        selected: options[selectedIndex],
+        profile: selectedProfile.name,
+        provider: selectedProfile.type,
+      };
+    } catch (error) {
+      if (error instanceof Error && error.message === "Timed out waiting") {
+        throw new AskTimeoutError();
+      }
+
+      if (isAbortError(error)) {
+        throw new AskAbortedError();
+      }
+
+      throw error;
+    } finally {
+      if (input.signal?.aborted) {
+        try {
+          await clearTelegramInlineKeyboard(
+            selectedProfile.botToken,
+            selectedProfile.chatId,
+            sentMessage.messageId
+          );
+        } catch {
+          // Do not mask the original ask result or failure if cleanup fails.
+        }
+      }
+    }
   }
 
   private resolveProfile(profileName?: string): Readonly<NotifierProfile> {
@@ -323,4 +471,10 @@ function isConfigLoader(value: unknown): value is NotifierConfigLoader {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return typeof error === "object" && error !== null && "code" in error;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException
+    ? error.name === "AbortError"
+    : error instanceof Error && error.name === "AbortError";
 }

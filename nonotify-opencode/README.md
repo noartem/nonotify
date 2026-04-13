@@ -1,9 +1,17 @@
 # nonotify-opencode
 
-[OpenCode](https://github.com/anomalyco/opencode) plugin that sends notifications through [nnt](https://github.com/noartem/nnt) when:
+[OpenCode](https://github.com/anomalyco/opencode) plugin that sends notifications and interactive Telegram questions through [nnt](https://github.com/noartem/nnt) when:
 
 - a permission request is pending for more than 1 minute
 - a question request (agent needs your input) is pending for more than 1 minute
+
+After the delay, the plugin tries to answer directly from Telegram:
+
+- permission requests get buttons for `allow once`, `allow always`, and `deny`
+- single-choice OpenCode questions are answered with one Telegram button tap
+- multi-select OpenCode questions are asked step by step until you press `Завершить выбор`
+
+If the same request is already answered in the OpenCode UI, the later Telegram answer is ignored.
 
 ## Installation (from npm)
 
@@ -49,3 +57,7 @@ OpenCode installs npm plugins and their dependencies automatically at startup.
 - `approvalDelaySeconds`: wait before notifying about pending permission request (default `60`).
 - `questionDelaySeconds`: wait before notifying about pending question request (default `60`).
 
+## Notes
+
+- The plugin uses `Notifier.ask()` from `nonotify`, so install a version that includes `nnt ask` support.
+- If interactive asking is unavailable or fails, the plugin falls back to a regular notification message.

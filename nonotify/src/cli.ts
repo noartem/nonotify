@@ -14,7 +14,12 @@ import {
   sendTelegramMessage,
   waitForChatId,
 } from "./telegram.js";
-import { Notifier } from "./notifier.js";
+import {
+  AskAbortedError,
+  AskTimeoutError,
+  Notifier,
+  NotifierError,
+} from "./notifier.js";
 
 const profileCli = Cli.create("profile", {
   description: "Manage notification profiles",
@@ -453,12 +458,20 @@ const cli = Cli.create("nnt", {
   })
   .command(profileCli);
 
+type ParsedAskArgs = {
+  message: string;
+  options: string[];
+  profile?: string;
+  timeoutMs?: number;
+  helpRequested: boolean;
+};
+
 function routeDefaultCommand(argv: string[]): string[] {
   if (argv.length === 0) {
     return argv;
   }
 
-  const topLevelCommands = new Set(["profile", "send", "skills", "mcp"]);
+  const topLevelCommands = new Set(["ask", "profile", "send", "skills", "mcp"]);
   const bareGlobalFlags = new Set([
     "--help",
     "-h",
@@ -510,6 +523,90 @@ function normalizeFormatFlag(argv: string[]): string[] {
   }
 
   return normalized;
+}
+
+function getCommandIndex(argv: string[]): number {
+  const bareGlobalFlags = new Set([
+    "--help",
+    "-h",
+    "--version",
+    "--llms",
+    "--mcp",
+    "--json",
+    "--verbose",
+  ]);
+
+  let index = 0;
+
+  while (index < argv.length) {
+    const token = argv[index];
+
+    if (token === "--format") {
+      index += 2;
+      continue;
+    }
+
+    if (bareGlobalFlags.has(token)) {
+      index += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return index;
+}
+
+async function serveAskCommandIfRequested(argv: string[]): Promise<boolean> {
+  const commandIndex = getCommandIndex(argv);
+
+  if (commandIndex >= argv.length || argv[commandIndex] !== "ask") {
+    return false;
+  }
+
+  try {
+    const parsed = parseAskArgs(argv.slice(commandIndex + 1));
+
+    if (parsed.helpRequested) {
+      process.stderr.write(getAskUsage());
+      return true;
+    }
+
+    const notifier = new Notifier();
+    const abortController = new AbortController();
+    let exitCode = 0;
+    const onAbortSignal = () => abortController.abort();
+
+    process.once("SIGINT", onAbortSignal);
+    process.once("SIGTERM", onAbortSignal);
+
+    try {
+      const result = await notifier.ask({
+        message: parsed.message,
+        options: parsed.options,
+        profile: parsed.profile,
+        timeoutMs: parsed.timeoutMs,
+        signal: abortController.signal,
+      });
+
+      process.stdout.write(`${result.selected}\n`);
+    } catch (error) {
+      exitCode = renderAskError(error);
+    } finally {
+      process.removeListener("SIGINT", onAbortSignal);
+      process.removeListener("SIGTERM", onAbortSignal);
+    }
+
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
+    }
+
+    return true;
+  } catch (error) {
+    process.stderr.write(`${formatAskError(error)}\n`);
+    process.exitCode = 1;
+    return true;
+  }
 }
 
 function isStrictOutputRequested(argv: string[]): boolean {
@@ -580,7 +677,130 @@ function shouldRenderPretty(agent: boolean): boolean {
   return !agent && !strictOutputRequested && !isAgentEnvironment();
 }
 
-const routedArgv = routeDefaultCommand(argvWithAgentDefaults);
-await cli.serve(routedArgv);
+if (!(await serveAskCommandIfRequested(normalizedArgv))) {
+  const routedArgv = routeDefaultCommand(argvWithAgentDefaults);
+  await cli.serve(routedArgv);
+}
 
 export default cli;
+
+function parseAskArgs(argv: string[]): ParsedAskArgs {
+  let profile: string | undefined;
+  let timeoutMs: number | undefined;
+  let helpRequested = false;
+  const positionals: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+
+    if (token === "--help" || token === "-h") {
+      helpRequested = true;
+      continue;
+    }
+
+    if (token === "--profile" || token === "-p") {
+      const value = argv[index + 1];
+
+      if (!value) {
+        throw new Error("Missing value for --profile.");
+      }
+
+      profile = value;
+      index += 1;
+      continue;
+    }
+
+    if (token.startsWith("--profile=")) {
+      profile = token.slice("--profile=".length);
+      continue;
+    }
+
+    if (token === "--timeout" || token === "-t") {
+      const value = argv[index + 1];
+
+      if (!value) {
+        throw new Error("Missing value for --timeout.");
+      }
+
+      timeoutMs = parseTimeoutFlag(value);
+      index += 1;
+      continue;
+    }
+
+    if (token.startsWith("--timeout=")) {
+      timeoutMs = parseTimeoutFlag(token.slice("--timeout=".length));
+      continue;
+    }
+
+    if (token.startsWith("-")) {
+      throw new Error(`Unknown option: ${token}`);
+    }
+
+    positionals.push(token);
+  }
+
+  if (helpRequested) {
+    return {
+      message: "",
+      options: [],
+      profile,
+      timeoutMs,
+      helpRequested,
+    };
+  }
+
+  if (positionals.length < 2) {
+    throw new Error(
+      "Ask requires a message and at least one option. See `nnt ask --help`."
+    );
+  }
+
+  return {
+    message: positionals[0],
+    options: positionals.slice(1),
+    profile,
+    timeoutMs,
+    helpRequested,
+  };
+}
+
+function parseTimeoutFlag(value: string): number {
+  const seconds = Number(value);
+
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new Error("--timeout must be a non-negative number of seconds.");
+  }
+
+  return Math.round(seconds * 1000);
+}
+
+function getAskUsage(): string {
+  return [
+    "Usage: nnt ask [--profile <name>] [--timeout <seconds>] <message> <option1> [option2 ... option10]",
+    "",
+    "Prints only the selected option to stdout.",
+  ].join("\n");
+}
+
+function renderAskError(error: unknown): number {
+  if (error instanceof AskTimeoutError) {
+    process.stderr.write(`${error.message}\n`);
+    return 1;
+  }
+
+  if (error instanceof AskAbortedError) {
+    process.stderr.write("Cancelled.\n");
+    return 130;
+  }
+
+  process.stderr.write(`${formatAskError(error)}\n`);
+  return 1;
+}
+
+function formatAskError(error: unknown): string {
+  if (error instanceof NotifierError || error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}

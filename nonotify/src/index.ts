@@ -1,4 +1,6 @@
 export {
+  AskAbortedError,
+  AskTimeoutError,
   EnvConfigLoader,
   NoProfilesConfiguredError,
   Notifier,
@@ -6,6 +8,8 @@ export {
   ProfileNotFoundError,
 } from "./notifier.js";
 export type {
+  AskInput,
+  AskResult,
   NotifierConfig,
   NotifierConfigLoader,
   NotifierProfile,
