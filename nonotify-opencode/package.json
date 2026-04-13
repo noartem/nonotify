@@ -1,6 +1,6 @@
 {
   "name": "nonotify-opencode",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "description": "OpenCode plugin for nonotify alerts",
   "type": "module",
   "main": "./index.js",
@@ -23,6 +23,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "nonotify": "^0.1.14"
+    "nonotify": "^0.2.0"
   }
 }
